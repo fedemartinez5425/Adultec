@@ -1,1093 +1,1421 @@
 import streamlit as st
 import time
-from PIL import Image
-import base64
 import random
+import pandas as pd
+import plotly.graph_objects as go
 
-# Configuración de la página
+# ─── Configuración de la página ───────────────────────────────────────────────
 st.set_page_config(
-    page_title="AdulTec - Aprendizaje digital para adultos mayores",
-    page_icon="👵👴",
+    page_title="AdulTec – Aprendizaje digital para adultos mayores",
+    page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Función para cambiar entre tema claro y oscuro
-def toggle_theme():
-    current_theme = st.session_state.get("theme", "light")
-    if current_theme == "light":
-        st.session_state.theme = "dark"
-    else:
-        st.session_state.theme = "light"
-    st.experimental_rerun()
-
-# Función para mostrar mensaje de bienvenida personalizado
-def mostrar_bienvenida(nombre):
-    if nombre:
-        return f"¡Bienvenido/a, {nombre}! 😊"
-    return "¡Bienvenido/a a AdulTec! 😊"
-
-# Función para crear tarjetas de cursos
-def crear_tarjeta_curso(titulo, descripcion, imagen, progreso=0, es_premium=False):
-    with st.container():
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            st.image(imagen, width=150)
-        with col2:
-            if es_premium:
-                st.markdown(f"### {titulo} 🌟")
-                st.markdown("*Curso Premium*")
-            else:
-                st.markdown(f"### {titulo}")
-            st.write(descripcion)
-            
-            # Barra de progreso
-            if progreso > 0:
-                st.progress(progreso)
-                st.write(f"Progreso: {int(progreso*100)}% completado")
-            
-            ver_curso = st.button("Entrar al curso", key=f"btn_{titulo}")
-            if ver_curso:
-                st.session_state.pagina = "curso"
-                st.session_state.curso_actual = titulo
-                st.experimental_rerun()
-
-# Aplicar CSS personalizado según el tema
-def aplicar_css():
-    tema = st.session_state.get("theme", "light")
-    
+# ─── CSS Global ───────────────────────────────────────────────────────────────
+def aplicar_css(tema: str):
     if tema == "dark":
-        background_color = "#0E1117"
-        text_color = "#FAFAFA"
-        secondary_bg = "#262730"
-        accent_color = "#1F77B4"
-        button_color = "#1F77B4"
-        card_bg = "#1E1E1E"
+        bg        = "#0F1117"
+        surface   = "#1C1E26"
+        surface2  = "#252836"
+        text      = "#F0F2FA"
+        muted     = "#8B92A8"
+        accent    = "#6C8EF5"
+        accent2   = "#A78BFA"
+        success   = "#34D399"
+        warning   = "#FBBF24"
+        danger    = "#F87171"
+        border    = "#2E3145"
+        card_shadow = "0 4px 24px rgba(0,0,0,0.5)"
     else:
-        background_color = "#FFFFFF"
-        text_color = "#31333F"
-        secondary_bg = "#F0F2F6"
-        accent_color = "#0A84FF"
-        button_color = "#0A84FF"
-        card_bg = "#FFFFFF"
+        bg        = "#F7F8FC"
+        surface   = "#FFFFFF"
+        surface2  = "#EEF1FB"
+        text      = "#1A1D2E"
+        muted     = "#6B7280"
+        accent    = "#4361EE"
+        accent2   = "#7C3AED"
+        success   = "#059669"
+        warning   = "#D97706"
+        danger    = "#DC2626"
+        border    = "#E2E6F3"
+        card_shadow = "0 2px 16px rgba(67,97,238,0.08)"
 
-    
-    css = f"""
+    st.markdown(f"""
     <style>
-        .main {{
-            background-color: {background_color};
-            color: {text_color};
-        }}
-        .stButton button {{
-            background-color: {button_color};
-            color: {'white' if tema == 'light' else 'white'};
-            border-radius: 20px;
-            padding: 12px 24px;
-            font-size: 18px;
-            font-weight: bold;
-            width: 100%;
-            border: none;
-        }}
-        .stProgress > div > div > div {{
-            background-color: {accent_color};
-        }}
-        .curso-tarjeta {{
-            background-color: {card_bg};
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .container {{
-            background-color: {secondary_bg};
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-        }}
-        h1, h2, h3 {{
-            color: {text_color};
-        }}
-        .footer {{
-            text-align: center;
-            margin-top: 30px;
-            padding: 10px;
-            font-size: 14px;
-            color: gray;
-        }}
-        .stRadio label {{
-            font-size: 20px;
-        }}
-        .quiz-option {{
-            background-color: {secondary_bg};
-            padding: 15px;
-            border-radius: 10px;
-            margin: 10px 0;
-            cursor: pointer;
-            transition: all 0.3s;
-        }}
-        .quiz-option:hover {{
-            background-color: {accent_color};
-            color: white;
-        }}
-        .stTabs [data-baseweb="tab-list"] {{
-            font-size: 20px;
-        }}
-        .faq-question {{
-            background-color: {secondary_bg};
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            cursor: pointer;
-        }}
-        .feature-card {{
-            background-color: {secondary_bg};
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            height: 100%;
-        }}
-        .icon-large {{
-            font-size: 48px;
-        }}
-        .ayuda-btn {{
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            background-color: #25D366;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 30px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            z-index: 9999;
-        }}
+    /* ── Imports ── */
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+
+    /* ── Reset & Base ── */
+    html, body, [class*="css"] {{
+        font-family: 'Nunito', sans-serif;
+        color: {text};
+    }}
+    .stApp {{ background-color: {bg}; }}
+    .main .block-container {{ padding-top: 1.5rem; padding-bottom: 3rem; max-width: 1100px; }}
+
+    /* ── Sidebar ── */
+    section[data-testid="stSidebar"] {{
+        background: {surface};
+        border-right: 1px solid {border};
+    }}
+    section[data-testid="stSidebar"] .stButton button {{
+        background: transparent;
+        color: {text};
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        text-align: left;
+        padding: 10px 14px;
+        width: 100%;
+        transition: background 0.2s;
+    }}
+    section[data-testid="stSidebar"] .stButton button:hover {{
+        background: {surface2};
+    }}
+
+    /* ── Buttons ── */
+    .stButton > button {{
+        background: {accent};
+        color: #fff;
+        border: none;
+        border-radius: 14px;
+        font-size: 16px;
+        font-weight: 700;
+        padding: 10px 24px;
+        width: 100%;
+        transition: opacity 0.2s, transform 0.1s;
+        letter-spacing: 0.02em;
+    }}
+    .stButton > button:hover {{ opacity: 0.88; transform: translateY(-1px); }}
+    .stButton > button:active {{ transform: translateY(0); }}
+
+    /* ── Inputs ── */
+    .stTextInput input, .stTextArea textarea, .stSelectbox select {{
+        background: {surface2} !important;
+        border: 1.5px solid {border} !important;
+        border-radius: 12px !important;
+        color: {text} !important;
+        font-size: 16px !important;
+        font-family: 'Nunito', sans-serif !important;
+    }}
+    .stTextInput input:focus, .stTextArea textarea:focus {{
+        border-color: {accent} !important;
+        box-shadow: 0 0 0 3px {accent}22 !important;
+    }}
+
+    /* ── Progress bar ── */
+    .stProgress > div > div > div {{ background: linear-gradient(90deg, {accent}, {accent2}); border-radius: 8px; }}
+    .stProgress > div > div {{ background: {surface2}; border-radius: 8px; }}
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 8px;
+        background: {surface2};
+        border-radius: 14px;
+        padding: 4px;
+        border: none;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        color: {muted};
+        padding: 8px 18px;
+        background: transparent;
+    }}
+    .stTabs [aria-selected="true"] {{
+        background: {accent} !important;
+        color: #fff !important;
+    }}
+
+    /* ── Expanders ── */
+    .streamlit-expanderHeader {{
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        color: {text} !important;
+        background: {surface} !important;
+        border-radius: 12px !important;
+        border: 1.5px solid {border} !important;
+    }}
+
+    /* ── Radio ── */
+    .stRadio label {{ font-size: 17px !important; font-weight: 600; }}
+    .stRadio [data-testid="stMarkdownContainer"] p {{ font-size: 17px; }}
+
+    /* ── Alerts ── */
+    .stSuccess, .stError, .stWarning, .stInfo {{
+        border-radius: 12px !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+    }}
+
+    /* ── Divider ── */
+    hr {{ border-color: {border}; margin: 1.5rem 0; }}
+
+    /* ── Custom components ── */
+    .hero-title {{
+        font-family: 'Lora', serif;
+        font-size: 2.6rem;
+        font-weight: 600;
+        line-height: 1.2;
+        color: {text};
+        margin-bottom: 0.3rem;
+    }}
+    .hero-sub {{
+        font-size: 1.15rem;
+        color: {muted};
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+    }}
+    .badge {{
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 99px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }}
+    .badge-premium {{ background: linear-gradient(90deg,{accent},{accent2}); color:#fff; }}
+    .badge-free {{ background: {success}22; color: {success}; border: 1px solid {success}44; }}
+    .badge-new {{ background: {warning}22; color: {warning}; border: 1px solid {warning}44; }}
+
+    .card {{
+        background: {surface};
+        border: 1.5px solid {border};
+        border-radius: 20px;
+        padding: 22px 24px;
+        box-shadow: {card_shadow};
+        margin-bottom: 18px;
+        transition: box-shadow 0.2s;
+    }}
+    .card:hover {{ box-shadow: 0 6px 32px {accent}22; }}
+
+    .plan-card {{
+        background: {surface};
+        border: 2px solid {border};
+        border-radius: 22px;
+        padding: 28px 22px;
+        text-align: center;
+        height: 100%;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }}
+    .plan-card.featured {{
+        border-color: {accent};
+        box-shadow: 0 0 0 4px {accent}18;
+    }}
+    .plan-price {{
+        font-size: 2.2rem;
+        font-weight: 900;
+        color: {accent};
+        line-height: 1;
+    }}
+    .plan-period {{ font-size: 14px; color: {muted}; font-weight: 600; }}
+    .plan-name {{ font-size: 1.1rem; font-weight: 800; color: {text}; margin-bottom: 6px; }}
+    .plan-feature {{
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        text-align: left;
+        margin: 8px 0;
+        font-size: 15px;
+        color: {text};
+        font-weight: 600;
+    }}
+    .plan-feature .check {{ color: {success}; font-size: 17px; flex-shrink: 0; }}
+
+    .testimonial {{
+        background: {surface};
+        border-left: 4px solid {accent};
+        border-radius: 0 16px 16px 0;
+        padding: 18px 20px;
+        margin-bottom: 14px;
+        font-style: italic;
+        color: {text};
+        font-size: 16px;
+    }}
+    .testimonial-author {{
+        font-style: normal;
+        font-weight: 800;
+        color: {accent};
+        margin-top: 8px;
+        font-size: 14px;
+    }}
+
+    .stat-box {{
+        background: {surface};
+        border: 1.5px solid {border};
+        border-radius: 16px;
+        padding: 18px;
+        text-align: center;
+    }}
+    .stat-number {{
+        font-size: 2rem;
+        font-weight: 900;
+        color: {accent};
+        line-height: 1;
+    }}
+    .stat-label {{ font-size: 13px; color: {muted}; font-weight: 700; margin-top: 4px; }}
+
+    .modulo-nav {{
+        background: {surface2};
+        border-radius: 14px;
+        padding: 6px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }}
+
+    .footer {{
+        text-align: center;
+        margin-top: 40px;
+        padding: 16px;
+        font-size: 13px;
+        color: {muted};
+        border-top: 1px solid {border};
+    }}
+
+    .whatsapp-btn {{
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 56px;
+        height: 56px;
+        background: #25D366;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 28px;
+        box-shadow: 0 4px 16px rgba(37,211,102,0.4);
+        z-index: 9999;
+        text-decoration: none;
+        transition: transform 0.2s;
+    }}
+    .whatsapp-btn:hover {{ transform: scale(1.1); }}
+
+    .quiz-card {{
+        background: {surface};
+        border: 2px solid {border};
+        border-radius: 18px;
+        padding: 28px;
+        margin-bottom: 16px;
+    }}
+    .quiz-question {{
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: {text};
+        margin-bottom: 20px;
+        line-height: 1.4;
+    }}
+    .result-circle {{
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        background: conic-gradient({accent} var(--pct), {surface2} 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        position: relative;
+    }}
+    .result-inner {{
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: {surface};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        font-weight: 900;
+        color: {accent};
+    }}
+
+    /* hide default streamlit menu & footer */
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
     </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
-    
-    # Botón flotante de WhatsApp
-    whatsapp_html = """
-    <a href="https://wa.me/5491100000000?text=Hola,%20necesito%20ayuda%20con%20AdulTec" target="_blank">
-        <div class="ayuda-btn">💬</div>
+
+    <a href="https://wa.me/5492644000000?text=Hola,%20necesito%20ayuda%20con%20AdulTec" target="_blank">
+        <div class="whatsapp-btn">💬</div>
     </a>
-    """
-    st.markdown(whatsapp_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# Inicializar variables de sesión
-if "pagina" not in st.session_state:
-    st.session_state.pagina = "inicio"
-if "theme" not in st.session_state:
-    st.session_state.theme = "light"
-if "usuario_logueado" not in st.session_state:
-    st.session_state.usuario_logueado = False
-if "nombre_usuario" not in st.session_state:
-    st.session_state.nombre_usuario = ""
-if "respuestas_correctas" not in st.session_state:
-    st.session_state.respuestas_correctas = 0
-if "pregunta_actual" not in st.session_state:
-    st.session_state.pregunta_actual = 0
-if "modulo_actual" not in st.session_state:
-    st.session_state.modulo_actual = 1
-if "mostrar_resultado" not in st.session_state:
-    st.session_state.mostrar_resultado = False
 
-# Aplicar CSS según el tema
-aplicar_css()
-
-# Contenido del curso básico de Internet
-curso_internet = {
-    "titulo": "¿Qué es Internet y cómo usarlo de forma segura?",
+# ─── Datos del curso ───────────────────────────────────────────────────────────
+CURSO_INTERNET = {
+    "titulo": "Internet para principiantes",
+    "descripcion": "Aprenda qué es Internet, cómo navegar con seguridad y comunicarse con sus seres queridos.",
+    "nivel": "Básico",
+    "duracion": "4 módulos · ~2 horas",
     "modulos": [
         {
-            "titulo": "Módulo 1: Fundamentos de Internet",
+            "titulo": "¿Qué es Internet?",
+            "icono": "🌐",
             "contenido": """
-            # Módulo 1: Fundamentos de Internet
-            
-            ## ¿Qué es Internet?
-            
-            Internet es una red mundial de computadoras conectadas entre sí que permite compartir información y comunicarse.
-            
-            Piense en Internet como una gran biblioteca donde puede:
-            - Buscar información sobre cualquier tema
-            - Comunicarse con familiares y amigos
-            - Realizar trámites y pagos
-            - Ver fotos, videos y escuchar música
-            
-            ## ¿Cómo nos conectamos a Internet?
-            
-            Para conectarnos a Internet necesitamos:
-            1. Un dispositivo (computadora, celular o tablet)
-            2. Una conexión a Internet (WiFi o datos móviles)
-            3. Un navegador web (como Chrome, Firefox o Edge)
-            
-            ## Actividad práctica:
-            Identifique en su dispositivo el ícono del navegador web y practique cómo abrirlo.
-            
-            ## Video explicativo:
+## 🌐 ¿Qué es Internet?
+
+Internet es una **red mundial de computadoras** conectadas entre sí que permite compartir información y comunicarse al instante, sin importar la distancia.
+
+Piense en Internet como una **gran biblioteca y oficina de correos combinadas**, donde puede:
+
+- 📖 Buscar información sobre cualquier tema
+- 💬 Comunicarse con familiares y amigos
+- 📋 Realizar trámites y pagos sin salir de casa
+- 🎵 Ver fotos, videos y escuchar música
+
+---
+
+### ¿Cómo nos conectamos?
+
+Para conectarnos a Internet necesitamos **tres cosas**:
+
+1. **Un dispositivo** — computadora, celular o tablet
+2. **Una conexión** — WiFi del hogar o datos móviles del celular
+3. **Un navegador web** — Chrome, Firefox o Edge
+
+> 💡 **Actividad práctica:** Encuentre el ícono del navegador en su dispositivo y practique cómo abrirlo.
             """,
             "video": "https://www.youtube.com/embed/JrF33N9zTCU",
             "quiz": [
                 {
                     "pregunta": "¿Qué es Internet?",
-                    "opciones": [
-                        "Un programa para computadoras",
-                        "Una red mundial de computadoras conectadas",
-                        "Una compañía de telefonía",
-                        "Un tipo de teléfono moderno"
-                    ],
-                    "respuesta_correcta": 1
+                    "opciones": ["Un programa para computadoras", "Una red mundial de computadoras conectadas", "Una compañía de telefonía", "Un tipo de teléfono moderno"],
+                    "correcta": 1,
+                    "explicacion": "Internet es exactamente eso: una enorme red que conecta millones de computadoras en todo el mundo."
                 },
                 {
                     "pregunta": "¿Qué necesitamos para conectarnos a Internet?",
-                    "opciones": [
-                        "Solo un teléfono celular",
-                        "Una computadora y un televisor",
-                        "Un dispositivo, una conexión y un navegador web",
-                        "Una radio y una antena"
-                    ],
-                    "respuesta_correcta": 2
+                    "opciones": ["Solo un teléfono celular", "Una computadora y un televisor", "Un dispositivo, una conexión y un navegador web", "Una radio y una antena"],
+                    "correcta": 2,
+                    "explicacion": "Los tres elementos son necesarios: el dispositivo, la conexión (WiFi o datos) y el navegador."
                 },
                 {
                     "pregunta": "¿Cuál de estos es un navegador web?",
-                    "opciones": [
-                        "WhatsApp",
-                        "Chrome",
-                        "Word",
-                        "Calculadora"
-                    ],
-                    "respuesta_correcta": 1
-                }
-            ]
+                    "opciones": ["WhatsApp", "Chrome", "Word", "Calculadora"],
+                    "correcta": 1,
+                    "explicacion": "Chrome es un navegador web. WhatsApp es una app de mensajería, Word es un procesador de texto y Calculadora es una app matemática."
+                },
+            ],
         },
         {
-            "titulo": "Módulo 2: Navegación básica y búsqueda",
+            "titulo": "Navegación y búsqueda",
+            "icono": "🔍",
             "contenido": """
-            # Módulo 2: Navegación básica y búsqueda
-            
-            ## Conociendo el navegador web
-            
-            El navegador web es la ventana que nos permite acceder a Internet. Sus partes principales son:
-            
-            - Barra de direcciones: donde escribimos la dirección de la página web
-            - Botones de navegación: para ir hacia adelante, atrás o recargar la página
-            - Pestañas: para abrir varias páginas a la vez
-            
-            ## Cómo buscar información
-            
-            Para buscar información en Internet:
-            1. Abra su navegador
-            2. Escriba "www.google.com" en la barra de direcciones
-            3. En el cuadro de búsqueda, escriba lo que desea encontrar
-            4. Presione "Enter" o haga clic en la lupa
-            5. Revise los resultados y haga clic en los que le interesen
-            
-            ## Consejos para búsquedas efectivas:
-            - Use palabras clave específicas
-            - Sea breve pero descriptivo
-            - Pruebe diferentes palabras si no encuentra lo que busca
-            
-            ## Video explicativo:
+## 🔍 Cómo navegar y buscar información
+
+### Partes del navegador web
+
+El navegador es su **ventana a Internet**. Consta de:
+
+| Parte | Para qué sirve |
+|---|---|
+| **Barra de direcciones** | Escribir la dirección de una página |
+| **Botones ◀ ▶** | Ir hacia atrás o adelante |
+| **🔄 Recargar** | Actualizar la página |
+| **Pestañas** | Abrir varias páginas a la vez |
+
+---
+
+### Cómo buscar en Google
+
+1. Abra su navegador
+2. Escriba **www.google.com** en la barra de direcciones
+3. En el cuadro de búsqueda, escriba lo que desea encontrar
+4. Presione **Enter** o toque la lupa 🔍
+5. Haga clic en el resultado que más le interese
+
+> 💡 **Consejo:** Use palabras clave cortas y específicas. En lugar de "quiero saber el clima de hoy en mi ciudad", escriba simplemente **"clima San Juan"**.
             """,
             "video": "https://www.youtube.com/embed/uy_zQAFx_gQ",
             "quiz": [
                 {
                     "pregunta": "¿Dónde escribimos la dirección de una página web?",
-                    "opciones": [
-                        "En el teclado",
-                        "En la barra de direcciones del navegador",
-                        "En un mensaje de WhatsApp",
-                        "En un papel"
-                    ],
-                    "respuesta_correcta": 1
+                    "opciones": ["En el teclado", "En la barra de direcciones del navegador", "En un mensaje de WhatsApp", "En un papel"],
+                    "correcta": 1,
+                    "explicacion": "La barra de direcciones, ubicada en la parte superior del navegador, es donde escribimos la dirección (URL) de la página que queremos visitar."
                 },
                 {
                     "pregunta": "¿Cuál es un motor de búsqueda popular?",
-                    "opciones": [
-                        "Facebook",
-                        "Microsoft Word",
-                        "Google",
-                        "WhatsApp"
-                    ],
-                    "respuesta_correcta": 2
+                    "opciones": ["Facebook", "Microsoft Word", "Google", "WhatsApp"],
+                    "correcta": 2,
+                    "explicacion": "Google es el motor de búsqueda más usado en el mundo. Facebook es una red social, Word es un procesador de texto y WhatsApp es de mensajería."
                 },
                 {
                     "pregunta": "¿Qué debemos hacer para buscar información efectivamente?",
-                    "opciones": [
-                        "Escribir oraciones muy largas y detalladas",
-                        "Usar palabras clave específicas",
-                        "Usar solo mayúsculas",
-                        "Buscar solo imágenes"
-                    ],
-                    "respuesta_correcta": 1
-                }
-            ]
+                    "opciones": ["Escribir oraciones muy largas", "Usar palabras clave específicas", "Usar solo mayúsculas", "Buscar solo imágenes"],
+                    "correcta": 1,
+                    "explicacion": "Las palabras clave cortas y específicas dan mejores resultados. Las oraciones largas pueden confundir al buscador."
+                },
+            ],
         },
         {
-            "titulo": "Módulo 3: Comunicación en línea",
+            "titulo": "Comunicación en línea",
+            "icono": "💬",
             "contenido": """
-            # Módulo 3: Comunicación en línea
-            
-            ## Correo electrónico (Email)
-            
-            El correo electrónico es como una carta digital que permite enviar y recibir mensajes instantáneamente.
-            
-            Partes de un correo electrónico:
-            - Dirección de correo: similar a su@ejemplo.com
-            - Asunto: breve descripción del contenido del mensaje
-            - Cuerpo del mensaje: el contenido principal
-            - Archivos adjuntos: fotos, documentos u otros archivos
-            
-            ## Videollamadas
-            
-            Las videollamadas permiten ver y hablar con sus seres queridos a distancia:
-            - WhatsApp: ideal para llamadas desde el celular
-            - Zoom: útil para reuniones grupales
-            - Google Meet: fácil de usar desde el navegador
-            
-            ## Redes sociales
-            
-            Las redes sociales son plataformas para conectarse con amigos y familiares:
-            - Facebook: la más popular entre adultos mayores
-            - Instagram: para compartir fotos y videos
-            - Twitter: para mensajes cortos e información actualizada
-            
-            ## Video explicativo:
+## 💬 Comunicación en línea
+
+### Correo electrónico (Email)
+
+El correo electrónico es como una **carta digital instantánea**. Sus partes son:
+
+- **Dirección:** similar a `su.nombre@gmail.com`
+- **Asunto:** breve descripción del mensaje
+- **Cuerpo:** el contenido principal
+- **Archivos adjuntos:** fotos, documentos, etc.
+
+---
+
+### Videollamadas
+
+Las videollamadas le permiten **ver y escuchar** a sus seres queridos a distancia:
+
+| App | Ideal para |
+|---|---|
+| **WhatsApp** | Llamadas desde el celular |
+| **Zoom** | Reuniones grupales |
+| **Google Meet** | Desde el navegador, sin instalar nada |
+
+---
+
+### Redes sociales
+
+- **Facebook** — La más popular entre adultos mayores. Ideal para ver fotos y noticias de la familia.
+- **Instagram** — Para compartir fotos y videos.
+- **YouTube** — Para ver videos de cualquier tema.
+
+> 💡 **Consejo:** Empiece con WhatsApp. Es la herramienta que más va a usar para comunicarse con su familia.
             """,
             "video": "https://www.youtube.com/embed/Ak6ywKvv3vw",
             "quiz": [
                 {
                     "pregunta": "¿Qué es un correo electrónico?",
-                    "opciones": [
-                        "Un mensaje de texto",
-                        "Una carta digital",
-                        "Una llamada telefónica",
-                        "Una reunión virtual"
-                    ],
-                    "respuesta_correcta": 1
+                    "opciones": ["Un mensaje de texto de celular", "Una carta digital instantánea", "Una llamada telefónica", "Una reunión presencial"],
+                    "correcta": 1,
+                    "explicacion": "El correo electrónico funciona como una carta, pero se envía y recibe de forma instantánea por Internet."
                 },
                 {
-                    "pregunta": "¿Qué aplicación es útil para hacer videollamadas?",
-                    "opciones": [
-                        "Microsoft Word",
-                        "Calculadora",
-                        "WhatsApp",
-                        "Bloc de notas"
-                    ],
-                    "respuesta_correcta": 2
+                    "pregunta": "¿Qué aplicación es ideal para hacer videollamadas desde el celular?",
+                    "opciones": ["Microsoft Word", "Calculadora", "WhatsApp", "Bloc de notas"],
+                    "correcta": 2,
+                    "explicacion": "WhatsApp es la aplicación más popular para videollamadas desde el celular, especialmente para comunicarse con familia."
                 },
                 {
-                    "pregunta": "¿Cuál es la red social más popular entre adultos mayores?",
-                    "opciones": [
-                        "Facebook",
-                        "TikTok",
-                        "Snapchat",
-                        "LinkedIn"
-                    ],
-                    "respuesta_correcta": 0
-                }
-            ]
+                    "pregunta": "¿Cuál red social es la más popular entre adultos mayores?",
+                    "opciones": ["Facebook", "TikTok", "Snapchat", "LinkedIn"],
+                    "correcta": 0,
+                    "explicacion": "Facebook es la red social preferida por adultos mayores porque permite estar al tanto de la familia y amigos de forma simple."
+                },
+            ],
         },
         {
-            "titulo": "Módulo 4: Seguridad en Internet",
+            "titulo": "Seguridad en Internet",
+            "icono": "🔒",
             "contenido": """
-            # Módulo 4: Seguridad en Internet
-            
-            ## Contraseñas seguras
-            
-            Una contraseña segura es su primera línea de defensa:
-            - Use al menos 8 caracteres
-            - Combine letras mayúsculas, minúsculas, números y símbolos
-            - Evite información personal (fechas de nacimiento, nombres)
-            - Use contraseñas diferentes para cada servicio
-            
-            ## Identificando estafas comunes
-            
-            Esté atento a estas señales de posibles estafas:
-            - Ofertas demasiado buenas para ser verdad
-            - Mensajes con errores ortográficos o gramaticales
-            - Solicitudes urgentes de dinero o información personal
-            - Remitentes desconocidos
-            
-            ## Consejos de seguridad
-            
-            Para navegar de forma segura:
-            - No comparta datos personales ni bancarios en sitios no confiables
-            - Cierre sesión cuando termine de usar un servicio
-            - Mantenga su dispositivo actualizado
-            - Instale únicamente aplicaciones oficiales
-            
-            ## Video explicativo:
+## 🔒 Seguridad en Internet
+
+### Contraseñas seguras
+
+Una buena contraseña es su **primera línea de defensa**:
+
+✅ Al menos **8 caracteres**
+✅ Combine **letras + números + símbolos** (ej: `Casa2024!`)
+✅ **Diferente** para cada servicio
+❌ Evite fechas de nacimiento, nombres de mascotas o "1234"
+
+---
+
+### ⚠️ Señales de alerta: posibles estafas
+
+Desconfíe si recibe mensajes con:
+- Ofertas **demasiado buenas** para ser verdad ("ganó un premio")
+- Pedidos **urgentes** de dinero o datos personales
+- Errores de ortografía o redacción extraña
+- Remitentes desconocidos
+
+---
+
+### Consejos de navegación segura
+
+🔐 No comparta datos bancarios en sitios no confiables
+🚪 Cierre sesión cuando termine de usar un servicio
+🔄 Mantenga su dispositivo actualizado
+📲 Instale solo aplicaciones oficiales (App Store / Play Store)
+
+> ⚠️ **Regla de oro:** Si algo parece sospechoso, no haga clic. Consulte con un familiar antes de actuar.
             """,
             "video": "https://www.youtube.com/embed/PSrKw2R1B9A",
             "quiz": [
                 {
-                    "pregunta": "¿Qué característica debe tener una contraseña segura?",
-                    "opciones": [
-                        "Ser corta y fácil de recordar",
-                        "Contener solo números",
-                        "Combinar letras, números y símbolos",
-                        "Ser igual para todas sus cuentas"
-                    ],
-                    "respuesta_correcta": 2
+                    "pregunta": "¿Qué debe tener una contraseña segura?",
+                    "opciones": ["Ser corta y fácil de recordar", "Contener solo números", "Combinar letras, números y símbolos", "Ser la misma para todas las cuentas"],
+                    "correcta": 2,
+                    "explicacion": "Una contraseña segura combina letras mayúsculas, minúsculas, números y símbolos. La longitud y variedad la hacen difícil de adivinar."
                 },
                 {
-                    "pregunta": "¿Cuál es una señal de posible estafa?",
-                    "opciones": [
-                        "Un mensaje de un familiar conocido",
-                        "Una oferta demasiado buena para ser verdad",
-                        "Un correo de su banco con su logo oficial",
-                        "Una factura de un servicio que usted usa"
-                    ],
-                    "respuesta_correcta": 1
+                    "pregunta": "¿Cuál es una señal de posible estafa por Internet?",
+                    "opciones": ["Un mensaje de un familiar conocido", "Una oferta demasiado buena para ser verdad", "Un correo de su banco con su logo", "Una factura de un servicio que usa"],
+                    "correcta": 1,
+                    "explicacion": "Las estafas frecuentemente prometen premios o beneficios exagerados. Si algo parece demasiado bueno, probablemente lo es."
                 },
                 {
                     "pregunta": "¿Qué debe hacer cuando termina de usar un servicio en línea?",
-                    "opciones": [
-                        "Apagar el dispositivo inmediatamente",
-                        "Guardar la contraseña en un papel",
-                        "Cerrar sesión",
-                        "Dejar la sesión abierta para la próxima vez"
-                    ],
-                    "respuesta_correcta": 2
-                }
-            ]
-        }
-    ]
+                    "opciones": ["Apagar el dispositivo inmediatamente", "Guardar la contraseña en un papel visible", "Cerrar sesión", "Dejar la sesión abierta para la próxima vez"],
+                    "correcta": 2,
+                    "explicacion": "Cerrar sesión evita que otras personas accedan a su cuenta si alguien más usa el dispositivo."
+                },
+            ],
+        },
+    ],
 }
 
-# Definir otros cursos disponibles
-otros_cursos = [
+OTROS_CURSOS = [
     {
-        "titulo": "Usando WhatsApp como un experto",
-        "descripcion": "Aprenda a comunicarse con sus seres queridos, enviar fotos, crear grupos y hacer videollamadas.",
-        "imagen": "https://play-lh.googleusercontent.com/bYtqbOcTYOlgc6gqZ2rwb8lptHuwlNE75zYJu6Bn076-hTmvd96HH-6v7S0YUAAJXoJN=w240-h480-rw",
-        "progreso": 0.3,
-        "es_premium": False
+        "titulo": "WhatsApp desde cero",
+        "descripcion": "Envíe mensajes, fotos y haga videollamadas con familia y amigos. El curso más pedido.",
+        "emoji": "📱",
+        "progreso": 0.0,
+        "premium": False,
+        "tag": "Más popular",
     },
     {
-        "titulo": "Cómo usar su teléfono inteligente",
-        "descripcion": "Domine las funciones básicas y avanzadas de su smartphone para sacarle el máximo provecho.",
-        "imagen": "https://cdn.thewirecutter.com/wp-content/media/2024/04/budgetandroidphones-2048px-1013.jpg",
-        "progreso": 0,
-        "es_premium": True
+        "titulo": "Cómo usar su smartphone",
+        "descripcion": "Domine las funciones básicas y avanzadas de su teléfono inteligente.",
+        "emoji": "📲",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": "Nuevo",
     },
     {
         "titulo": "Trámites online: ANSES, AFIP y más",
-        "descripcion": "Aprenda a realizar gestiones gubernamentales desde la comodidad de su hogar.",
-        "imagen": "https://vocescriticas-s2.cdn.net.ar/st2i1700/2023/03/vocescriticas/images/40/22/402237_5bc5677f9fa4f1a4b20da3481d403eee1397974df248c2dc047420f9b79744d0/lg.jpg",
-        "progreso": 0,
-        "es_premium": True
+        "descripcion": "Realice gestiones gubernamentales desde la comodidad de su hogar.",
+        "emoji": "🏛️",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": None,
     },
     {
-        "titulo": "Proteja su privacidad en línea",
-        "descripcion": "Consejos y herramientas para navegar de forma segura y proteger sus datos personales.",
-        "imagen": "https://www.segurilatam.com/wp-content/uploads/sites/5/2022/12/robo-de-informacion.jpg",
+        "titulo": "Compras seguras en Internet",
+        "descripcion": "Aprenda a comprar en Mercado Libre, supermercados online y más, sin riesgos.",
+        "emoji": "🛒",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": "Nuevo",
+    },
+    {
+        "titulo": "Privacidad y seguridad digital",
+        "descripcion": "Consejos y herramientas para proteger sus datos personales y navegar sin miedo.",
+        "emoji": "🔐",
         "progreso": 0.1,
-        "es_premium": False
-    }
+        "premium": False,
+        "tag": None,
+    },
 ]
 
-# Funciones para la navegación
-def ir_a_inicio():
-    st.session_state.pagina = "inicio"
-    st.experimental_rerun()
+PLANES = [
+    {
+        "nombre": "Básico",
+        "precio_mes": 8_000,
+        "precio_anual": 80_000,
+        "mix": 0.311,
+        "featured": False,
+        "color": "free",
+        "emoji": "🌱",
+        "features": [
+            "3 clases gratuitas para empezar",
+            "Acceso a 2 cursos básicos",
+            "Comunidad de apoyo",
+            "Evaluaciones y quizzes",
+            "Contenido con publicidad",
+        ],
+        "no_incluye": ["Tutorías en grupo", "Certificados", "Soporte prioritario"],
+    },
+    {
+        "nombre": "Estándar",
+        "precio_mes": 13_000,
+        "precio_anual": 130_000,
+        "mix": 0.356,
+        "featured": True,
+        "color": "premium",
+        "emoji": "⭐",
+        "features": [
+            "Todo el catálogo de cursos",
+            "Sin publicidad",
+            "Tutorías grupales semanales",
+            "Certificados de finalización",
+            "Descuento jubilados 20%",
+            "7 días de prueba gratis",
+        ],
+        "no_incluye": ["Tutorías personalizadas", "Soporte prioritario"],
+    },
+    {
+        "nombre": "Premium",
+        "precio_mes": 20_000,
+        "precio_anual": 200_000,
+        "mix": 0.333,
+        "featured": False,
+        "color": "premium",
+        "emoji": "👑",
+        "features": [
+            "Todo lo del plan Estándar",
+            "2 tutorías personalizadas al mes",
+            "Soporte técnico prioritario",
+            "Configuración remota inicial",
+            "Descuento jubilados 20%",
+            "Plan familiar (hasta 3 personas)",
+        ],
+        "no_incluye": [],
+    },
+]
 
-def ir_a_mis_cursos():
-    st.session_state.pagina = "mis_cursos"
-    st.experimental_rerun()
+ARPU = 13_776  # ARS ponderado por mix de encuesta
 
-def ir_a_comunidad():
-    st.session_state.pagina = "comunidad"
-    st.experimental_rerun()
 
-def ir_a_planes():
-    st.session_state.pagina = "planes"
-    st.experimental_rerun()
+# ─── Estado de sesión ─────────────────────────────────────────────────────────
+def init_state():
+    defaults = {
+        "pagina": "inicio",
+        "tema": "light",
+        "logueado": False,
+        "nombre": "",
+        "modulo": 1,
+        "pregunta": 0,
+        "correctas": 0,
+        "quiz_done": False,
+        "quiz_respondida": False,
+        "respuesta_elegida": None,
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-def ir_a_login():
-    st.session_state.pagina = "login"
-    st.experimental_rerun()
 
-def ir_a_registro():
-    st.session_state.pagina = "registro"
-    st.experimental_rerun()
+init_state()
+aplicar_css(st.session_state.tema)
 
-def ir_a_curso():
-    st.session_state.pagina = "curso"
-    st.experimental_rerun()
 
-def verificar_login(usuario, contraseña):
-    # En un MVP simulamos la autenticación
-    if usuario and contraseña:
-        st.session_state.usuario_logueado = True
-        st.session_state.nombre_usuario = usuario
-        ir_a_inicio()
-    else:
-        st.error("Por favor, complete todos los campos.")
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+def ir(pagina: str):
+    st.session_state.pagina = pagina
+    st.rerun()
 
-def cerrar_sesion():
-    st.session_state.usuario_logueado = False
-    st.session_state.nombre_usuario = ""
-    ir_a_inicio()
 
-def evaluar_respuesta(respuesta, respuesta_correcta):
-    if respuesta == respuesta_correcta:
-        st.session_state.respuestas_correctas += 1
-        return True
-    return False
+def nav_btn(label: str, pagina: str, key: str = None):
+    if st.button(label, key=key or label):
+        ir(pagina)
 
-def siguiente_pregunta():
-    if st.session_state.pregunta_actual < len(curso_internet["modulos"][st.session_state.modulo_actual - 1]["quiz"]) - 1:
-        st.session_state.pregunta_actual += 1
-    else:
-        st.session_state.mostrar_resultado = True
 
-def reiniciar_quiz():
-    st.session_state.respuestas_correctas = 0
-    st.session_state.pregunta_actual = 0
-    st.session_state.mostrar_resultado = False
+def fmt_ars(n: int) -> str:
+    return f"$ {n:,.0f}".replace(",", ".")
 
-def siguiente_modulo():
-    if st.session_state.modulo_actual < len(curso_internet["modulos"]):
-        st.session_state.modulo_actual += 1
-        reiniciar_quiz()
-    else:
-        st.success("¡Felicidades! Ha completado todo el curso.")
 
-def modulo_anterior():
-    if st.session_state.modulo_actual > 1:
-        st.session_state.modulo_actual -= 1
-        reiniciar_quiz()
+def progress_ring_html(pct: int, color: str = "#4361EE") -> str:
+    deg = int(pct * 3.6)
+    return f"""
+    <div style="width:120px;height:120px;border-radius:50%;
+                background:conic-gradient({color} {deg}deg,#EEF1FB 0);
+                display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+        <div style="width:88px;height:88px;border-radius:50%;background:#fff;
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:1.4rem;font-weight:900;color:{color};">{pct}%</div>
+    </div>"""
 
-# Barra lateral para navegación
+
+def footer():
+    st.markdown("""<div class="footer">AdulTec © 2025 · La experiencia de toda una vida, ahora también en digital</div>""", unsafe_allow_html=True)
+
+
+# ─── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.image("logo.png", width=200)
-    st.markdown("## AdulTec")
-    st.write("La experiencia de toda una vida, ahora también en digital")
-    
-    # Botón para cambiar tema
-    tema_actual = "🌙 Modo oscuro" if st.session_state.theme == "light" else "☀️ Modo claro"
-    if st.button(tema_actual):
-        toggle_theme()
-    
+    st.markdown("""
+    <div style="text-align:center;padding:10px 0 4px;">
+        <span style="font-size:2.4rem;">🎓</span>
+        <div style="font-size:1.5rem;font-weight:900;letter-spacing:-0.5px;margin-top:2px;">AdulTec</div>
+        <div style="font-size:12px;color:#8B92A8;font-weight:600;margin-bottom:6px;">La academia digital para adultos mayores</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    tema_label = "🌙 Modo oscuro" if st.session_state.tema == "light" else "☀️ Modo claro"
+    if st.button(tema_label, key="toggle_tema"):
+        st.session_state.tema = "dark" if st.session_state.tema == "light" else "light"
+        st.rerun()
+
     st.markdown("---")
-    
-    # Menú de navegación
-    if st.button("🏠 Inicio"):
-        ir_a_inicio()
-    
-    if st.button("📚 Mis cursos"):
-        ir_a_mis_cursos()
-    
-    if st.button("👥 Comunidad"):
-        ir_a_comunidad()
-    
-    if st.button("💰 Planes y precios"):
-        ir_a_planes()
-    
+
+    nav_btn("🏠  Inicio", "inicio", "sb_inicio")
+    nav_btn("📚  Mis cursos", "cursos", "sb_cursos")
+    nav_btn("👥  Comunidad", "comunidad", "sb_comunidad")
+    nav_btn("💳  Planes y precios", "planes", "sb_planes")
+
     st.markdown("---")
-    
-    # Estado de sesión
-    if st.session_state.usuario_logueado:
-        st.write(f"👤 Usuario: {st.session_state.nombre_usuario}")
-        if st.button("Cerrar sesión"):
-            cerrar_sesion()
+
+    if st.session_state.logueado:
+        st.markdown(f"<div style='font-size:14px;font-weight:700;padding:4px 14px;'>👤 {st.session_state.nombre}</div>", unsafe_allow_html=True)
+        if st.button("Cerrar sesión", key="sb_logout"):
+            st.session_state.logueado = False
+            st.session_state.nombre = ""
+            ir("inicio")
     else:
-        if st.button("✅ Iniciar sesión"):
-            ir_a_login()
-        if st.button("📝 Registrarse"):
-            ir_a_registro()
+        nav_btn("✅  Iniciar sesión", "login", "sb_login")
+        nav_btn("📝  Registrarse", "registro", "sb_registro")
 
-# Páginas de la aplicación
+    st.markdown("---")
+    st.markdown("""
+    <div style="font-size:12px;color:#8B92A8;padding:0 14px;font-weight:600;">
+        📞 0800-ADULTEC<br>
+        📧 ayuda@adultec.com<br>
+        Lun–Vie · 9 a 18 hs
+    </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PÁGINA: INICIO
+# ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.pagina == "inicio":
-    st.markdown(f"# {mostrar_bienvenida(st.session_state.nombre_usuario)}")
-    
-    st.markdown("""
-    ### La academia online de habilidades digitales pensada para adultos mayores
-    
-    En AdulTec creemos que nunca es tarde para aprender. Nuestra plataforma está diseñada específicamente para adultos mayores que desean adquirir o mejorar sus habilidades tecnológicas.
-    """)
-    
-    # Características principales
+    saludo = f"Bienvenido/a, {st.session_state.nombre}! 😊" if st.session_state.logueado else "Bienvenido/a a AdulTec 😊"
+
+    st.markdown(f"""
+    <div class="hero-title">{saludo}</div>
+    <div class="hero-sub">La academia online de habilidades digitales pensada para adultos mayores 🇦🇷</div>
+    """, unsafe_allow_html=True)
+
+    # Stats
+    c1, c2, c3, c4 = st.columns(4)
+    for col, (num, label) in zip(
+        [c1, c2, c3, c4],
+        [("1.200+", "Estudiantes activos"), ("18", "Cursos disponibles"), ("4,9 ★", "Calificación promedio"), ("72 años", "Edad promedio")]
+    ):
+        with col:
+            st.markdown(f"""<div class="stat-box"><div class="stat-number">{num}</div><div class="stat-label">{label}</div></div>""", unsafe_allow_html=True)
+
+    st.markdown("")
+
+    # Por qué AdulTec
     st.markdown("## ¿Por qué elegir AdulTec?")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="icon-large">👴👵</div>
-            <h3>Diseñado para usted</h3>
-            <p>Interfaz simple y accesible con letras grandes y colores contrastantes.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="icon-large">🤝</div>
-            <h3>Apoyo constante</h3>
-            <p>Tutores especializados y una comunidad amigable para resolver sus dudas.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="icon-large">🎯</div>
-            <h3>Contenido práctico</h3>
-            <p>Aprenda exactamente lo que necesita para su día a día digital.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Curso destacado
-    st.markdown("## Curso recomendado para empezar")
-    
-    crear_tarjeta_curso(
-        "¿Qué es Internet y cómo usarlo de forma segura?",
-        "Curso básico para entender qué es Internet, cómo navegar de forma segura y proteger su información personal.",
-        "https://cdn-icons-png.flaticon.com/512/5054/5054674.png"
-    )
-    
-    # Testimonios
-    st.markdown("## Lo que dicen nuestros estudiantes")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        <div class="container">
-            <p>"Gracias a AdulTec ahora puedo hacer videollamadas con mis nietos sin pedir ayuda. Las explicaciones son claras y los profesores muy pacientes."</p>
-            <p><strong>- María, 72 años</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="container">
-            <p>"Nunca pensé que podría usar un smartphone con tanta facilidad. Los cursos son excelentes y el ritmo perfecto para mí."</p>
-            <p><strong>- Jorge, 68 años</strong></p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Llamada a la acción
-    st.markdown("## ¿Listo para comenzar?")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("📚 Ver todos los cursos"):
-            ir_a_mis_cursos()
-    
-    with col2:
-        if st.button("💰 Conocer nuestros planes"):
-            ir_a_planes()
-    
-    # Pie de página
-    st.markdown("""
-    <div class="footer">
-        AdulTec © 2025 - La experiencia de toda una vida, ahora también en digital
-    </div>
-    """, unsafe_allow_html=True)
-
-elif st.session_state.pagina == "mis_cursos":
-    st.markdown("# Mis cursos")
-    
-    # Curso principal con progreso completo
-    st.markdown("## Curso en progreso")
-    crear_tarjeta_curso(
-        curso_internet["titulo"],
-        "Curso básico para entender qué es Internet, cómo navegar de forma segura y proteger su información personal.",
-        "https://cdn-icons-png.flaticon.com/512/5054/5054674.png",
-        0.5
-    )
-    
-    # Otros cursos disponibles
-    st.markdown("## Otros cursos disponibles")
-    
-    for curso in otros_cursos:
-        crear_tarjeta_curso(
-            curso["titulo"],
-            curso["descripcion"],
-            curso["imagen"],
-            curso["progreso"],
-            curso["es_premium"]
-        )
-
-elif st.session_state.pagina == "comunidad":
-    st.markdown("# Comunidad de AdulTec")
-    
-    st.markdown("""
-    Bienvenido/a a nuestra comunidad de aprendizaje. Aquí puede hacer preguntas, compartir experiencias y conectarse con otros estudiantes.
-    """)
-    
-    # Opciones de la comunidad
-    tab1, tab2, tab3 = st.tabs(["📋 Preguntas frecuentes", "❓ Hacer una pregunta", "👥 Foro de estudiantes"])
-    
-    with tab1:
-        st.markdown("## Preguntas frecuentes")
-        
-        with st.expander("¿Cómo puedo cambiar mi contraseña?"):
-            st.write("""
-            Para cambiar su contraseña, siga estos pasos:
-            1. Haga clic en su nombre de usuario en la esquina superior derecha
-            2. Seleccione "Mi perfil"
-            3. Haga clic en "Cambiar contraseña"
-            4. Siga las instrucciones en pantalla
-            """)
-        
-        with st.expander("¿Cómo accedo a mis cursos?"):
-            st.write("""
-            Puede acceder a sus cursos de dos formas:
-            1. Haciendo clic en "Mis cursos" en el menú lateral
-            2. Desde la página de inicio, en la sección "Curso en progreso"
-            """)
-        
-        with st.expander("¿Los cursos tienen caducidad?"):
-            st.write("""
-            No, una vez que se inscribe en un curso, tiene acceso de por vida. Puede avanzar a su propio ritmo y revisar el contenido cuantas veces quiera.
-            """)
-        
-        with st.expander("¿Cómo obtengo ayuda si tengo problemas técnicos?"):
-            st.write("""
-            Puede obtener ayuda de varias formas:
-            1. Use el botón verde de WhatsApp que aparece en la esquina inferior derecha
-            2. Envíe un correo a ayuda@adultec.com
-            3. Llame al 0800-ADULTEC (0800-2385832)
-            
-            Nuestro equipo de soporte está disponible de lunes a viernes de 9:00 a 18:00 hs.
-            """)
-    
-    with tab2:
-        st.markdown("## Haga su pregunta")
-        
-        st.write("Complete el formulario a continuación y le responderemos en un plazo máximo de 24 horas.")
-        
-        categoria = st.selectbox(
-            "Categoría de la consulta:",
-            ["Seleccione una categoría", "Problemas técnicos", "Contenido de los cursos", "Facturación y pagos", "Otros"]
-        )
-        
-        titulo = st.text_input("Título de su pregunta:", placeholder="Ej: No puedo acceder al curso de WhatsApp")
-        
-        detalle = st.text_area(
-            "Describa su consulta en detalle:",
-            height=150,
-            placeholder="Por favor, describa su problema o pregunta con el mayor detalle posible. Cuanta más información nos brinde, mejor podremos ayudarle."
-        )
-        
-        if st.button("Enviar consulta"):
-            if categoria != "Seleccione una categoría" and titulo and detalle:
-                st.success("¡Su consulta ha sido enviada con éxito! Le responderemos pronto.")
-            else:
-                st.error("Por favor, complete todos los campos.")
-    
-    with tab3:
-        st.markdown("## Foro de estudiantes")
-        
-        # Simulación de conversaciones en el foro
-        conversaciones = [
-            {
-                "autor": "Marta G.",
-                "fecha": "Ayer",
-                "titulo": "¿Cómo guardo una foto de WhatsApp en mi galería?",
-                "respuestas": 3,
-                "ultimo_mensaje": "Hace 2 horas"
-            },
-            {
-                "autor": "Roberto P.",
-                "fecha": "Hace 3 días",
-                "titulo": "Recomendación de teclado con letras más grandes",
-                "respuestas": 7,
-                "ultimo_mensaje": "Hoy"
-            },
-            {
-                "autor": "Carmen L.",
-                "fecha": "Hace 1 semana",
-                "titulo": "Problema para hacer compras en Mercado Libre",
-                "respuestas": 5,
-                "ultimo_mensaje": "Hace 2 días"
-            }
-        ]
-        
-        # Filtros
-        col1, col2 = st.columns(2)
-        with col1:
-            filtro = st.selectbox("Ordenar por:", ["Más recientes", "Más comentados", "Sin respuesta"])
-        with col2:
-            busqueda = st.text_input("Buscar:", placeholder="Escriba palabras clave...")
-        
-        # Mostrar conversaciones
-        for i, conv in enumerate(conversaciones):
+    fc1, fc2, fc3 = st.columns(3)
+    features = [
+        ("👴👵", "Diseñado para usted", "Letra grande, colores claros, ritmo pausado. Sin tecnicismos innecesarios."),
+        ("🤝", "Apoyo constante", "Tutores especializados, comunidad amigable y soporte por WhatsApp."),
+        ("🎯", "Contenido práctico", "Aprenda exactamente lo que necesita para su día a día digital."),
+    ]
+    for col, (ico, titulo, desc) in zip([fc1, fc2, fc3], features):
+        with col:
             st.markdown(f"""
-            <div class="container">
-                <h3>{conv['titulo']}</h3>
-                <p>Iniciado por {conv['autor']} • {conv['fecha']} • {conv['respuestas']} respuestas • Última actividad: {conv['ultimo_mensaje']}</p>
-                <button>Ver conversación</button>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Botón para crear nuevo tema
-        if st.button("Crear nuevo tema"):
-            st.info("Función en desarrollo. Estará disponible próximamente.")
+            <div class="card" style="text-align:center;">
+                <div style="font-size:2.4rem;margin-bottom:10px;">{ico}</div>
+                <div style="font-size:1rem;font-weight:800;margin-bottom:6px;">{titulo}</div>
+                <div style="font-size:14px;color:#6B7280;">{desc}</div>
+            </div>""", unsafe_allow_html=True)
 
-elif st.session_state.pagina == "planes":
-    st.markdown("# Planes y precios")
-    
-    st.markdown("""
-    Elija el plan que mejor se adapte a sus necesidades. Todos nuestros planes incluyen acceso a la comunidad de apoyo y contenido actualizado regularmente.
-    """)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        <div class="container">
-            <h3>Plan Básico</h3>
-            <h2>Gratis</h2>
-            <ul>
-                <li>Acceso a 2 cursos básicos</li>
-                <li>Comunidad de apoyo</li>
-                <li>Quizzes y evaluaciones</li>
-                <li>Contenido con publicidad</li>
-            </ul>
-            <button>Comenzar ahora</button>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="container">
-            <h3>Plan Estándar</h3>
-            <h2>$15.000 /mes</h2>
-            <p><small>O $150.000 /año (ahorra 2 meses)</small></p>
-            <ul>
-                <li>Acceso a todos los cursos</li>
-                <li>Sin publicidad</li>
-                <li>Tutorías grupales semanales</li>
-                <li>Certificados de finalización</li>
-            </ul>
-            <button>Suscribirse</button>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="container">
-            <h3>Plan Premium</h3>
-            <h2>$28.000 /mes</h2>
-            <p><small>O $280.000 /año (ahorra 2 meses)</small></p>
-            <ul>
-                <li>Todo lo del plan Estándar</li>
-                <li>2 tutorías personalizadas al mes</li>
-                <li>Soporte técnico prioritario</li>
-                <li>Configuración inicial remota</li>
-            </ul>
-            <button>Suscribirse</button>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Descuentos especiales
-    st.markdown("## Descuentos especiales")
-    
-    st.markdown("""
-    <div class="container">
-        <h3>Descuentos para jubilados</h3>
-        <p>Presentando su carnet de jubilado o pensionado, obtenga un 20% de descuento en cualquier plan.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="container">
-        <h3>Plan familiar</h3>
-        <p>Comparta su suscripción con hasta 3 miembros de su familia y ahorre un 30% del valor total.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Preguntas frecuentes sobre planes
-    st.markdown("## Preguntas frecuentes sobre planes")
-    
-    with st.expander("¿Puedo cancelar mi suscripción en cualquier momento?"):
-        st.write("Sí, puede cancelar su suscripción cuando lo desee. No hay permanencia mínima ni penalizaciones por cancelación anticipada.")
-    
-    with st.expander("¿Qué métodos de pago aceptan?"):
-        st.write("Aceptamos tarjetas de crédito y débito (Visa, MasterCard, American Express), transferencia bancaria y Mercado Pago.")
-    
-    with st.expander("¿Ofrecen períodos de prueba?"):
-        st.write("Sí, ofrecemos 7 días de prueba gratuita en los planes Estándar y Premium para que pueda evaluar si el servicio se adapta a sus necesidades.")
-    
-    with st.expander("¿Hay becas disponibles?"):
-        st.write("Sí, contamos con un programa de becas para personas con bajos recursos. Puede solicitar más información escribiendo a becas@adultec.com.")
+    st.markdown("---")
 
-elif st.session_state.pagina == "login":
-    st.markdown("# Iniciar sesión")
-    
-    st.markdown("""
-    Complete los siguientes campos para acceder a su cuenta. Si aún no tiene una cuenta, puede registrarse haciendo clic en "Registrarse" en el menú lateral.
-    """)
-    
-    with st.form("formulario_login"):
-        usuario = st.text_input("Correo electrónico o nombre de usuario:", placeholder="ejemplo@gmail.com")
-        contraseña = st.text_input("Contraseña:", type="password")
-        recordar = st.checkbox("Recordar mi usuario")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            enviar = st.form_submit_button("Iniciar sesión")
-        with col2:
-            st.markdown("[¿Olvidó su contraseña?](#)")
-        
-        if enviar:
-            verificar_login(usuario, contraseña)
-
-elif st.session_state.pagina == "registro":
-    st.markdown("# Crear una cuenta")
-    
-    st.markdown("""
-    Complete el siguiente formulario para registrarse en AdulTec. Los campos marcados con * son obligatorios.
-    """)
-    
-    with st.form("formulario_registro"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            nombre = st.text_input("Nombre*:", placeholder="Juan")
-        
-        with col2:
-            apellido = st.text_input("Apellido*:", placeholder="Pérez")
-        
-        email = st.text_input("Correo electrónico*:", placeholder="ejemplo@gmail.com")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            contraseña = st.text_input("Contraseña*:", type="password")
-        
-        with col2:
-            confirmar_contraseña = st.text_input("Confirmar contraseña*:", type="password")
-        
-        fecha_nacimiento = st.date_input("Fecha de nacimiento:")
-        
-        acepto_terminos = st.checkbox("Acepto los términos y condiciones*")
-        recibir_novedades = st.checkbox("Deseo recibir novedades y promociones por correo electrónico")
-        
-        enviar = st.form_submit_button("Registrarse")
-        
-        if enviar:
-            if nombre and apellido and email and contraseña and confirmar_contraseña and acepto_terminos:
-                if contraseña == confirmar_contraseña:
-                    st.success("¡Registro exitoso! Ahora puede iniciar sesión con sus credenciales.")
-                    st.session_state.nombre_usuario = nombre
-                    time.sleep(2)
-                    ir_a_login()
-                else:
-                    st.error("Las contraseñas no coinciden. Por favor, inténtelo nuevamente.")
-            else:
-                st.error("Por favor, complete todos los campos obligatorios.")
-
-elif st.session_state.pagina == "curso":
-    # Obtener el módulo actual
-    modulo = curso_internet["modulos"][st.session_state.modulo_actual - 1]
-    
-    # Barra de navegación del curso
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col1:
-        if st.session_state.modulo_actual > 1:
-            if st.button("« Módulo anterior"):
-                modulo_anterior()
-    with col2:
-        st.markdown(f"# {curso_internet['titulo']}")
-    with col3:
-        if st.session_state.modulo_actual < len(curso_internet["modulos"]):
-            if st.button("Módulo siguiente »"):
-                siguiente_modulo()
-    
-    # Progreso del curso
-    progreso_curso = st.session_state.modulo_actual / len(curso_internet["modulos"])
-    st.progress(progreso_curso)
-    st.write(f"Progreso del curso: {int(progreso_curso*100)}% ({st.session_state.modulo_actual} de {len(curso_internet['modulos'])} módulos)")
-    
-    # Pestañas del módulo actual
-    tab1, tab2 = st.tabs(["📚 Contenido", "🎯 Evaluación"])
-    
-    with tab1:
-        # Contenido del módulo
-        st.markdown(modulo["contenido"])
-        
-        # Video del módulo (embebido de YouTube)
+    # Curso destacado
+    st.markdown("## 🌟 Curso recomendado para empezar")
+    with st.container():
         st.markdown(f"""
-        <div style="display: flex; justify-content: center; margin: 30px 0;">
-            <iframe width="560" height="315" src="{modulo['video']}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        <div class="card">
+            <div style="display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap;">
+                <div style="font-size:3rem;">🌐</div>
+                <div style="flex:1;">
+                    <span class="badge badge-free">Gratis · 3 clases</span>
+                    <div style="font-size:1.2rem;font-weight:800;margin:8px 0 4px;">{CURSO_INTERNET['titulo']}</div>
+                    <div style="font-size:15px;color:#6B7280;margin-bottom:12px;">{CURSO_INTERNET['descripcion']}</div>
+                    <div style="font-size:13px;color:#6B7280;font-weight:600;">📖 {CURSO_INTERNET['duracion']} &nbsp;·&nbsp; 🏅 Nivel {CURSO_INTERNET['nivel']}</div>
+                </div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Botón para ir a la evaluación
-        if st.button("Ir a la evaluación"):
-            st.session_state.mostrar_resultado = False
-            st.session_state.pregunta_actual = 0
-            st.session_state.respuestas_correctas = 0
-    
-    with tab2:
-        # Evaluación del módulo
-        st.markdown(f"## Evaluación del {modulo['titulo']}")
-        
-        if not st.session_state.mostrar_resultado:
-            # Mostrar pregunta actual
-            pregunta_actual = modulo["quiz"][st.session_state.pregunta_actual]
-            st.markdown(f"### Pregunta {st.session_state.pregunta_actual + 1} de {len(modulo['quiz'])}")
-            st.markdown(f"**{pregunta_actual['pregunta']}**")
-            
-            # Opciones de respuesta
+        if st.button("▶️  Comenzar curso gratuito", key="cta_curso"):
+            st.session_state.modulo = 1
+            st.session_state.pregunta = 0
+            st.session_state.correctas = 0
+            st.session_state.quiz_done = False
+            st.session_state.quiz_respondida = False
+            ir("curso")
+
+    st.markdown("---")
+
+    # Testimonios
+    st.markdown("## 💬 Lo que dicen nuestros estudiantes")
+    tc1, tc2 = st.columns(2)
+    testimonios = [
+        ("María, 72 años · San Juan", "Gracias a AdulTec ahora hago videollamadas con mis nietos sin pedir ayuda. Las explicaciones son clarísimas y los profesores muy pacientes."),
+        ("Jorge, 68 años · Mendoza", "Nunca pensé que podría usar un smartphone con tanta facilidad. Los cursos tienen el ritmo perfecto para mí."),
+        ("Ana, 75 años · Córdoba", "Me enseñaron a hacer los trámites del ANSES desde casa. ¡No saben cuánto tiempo me ahorraron!"),
+        ("Roberto, 70 años · Buenos Aires", "La comunidad es increíble. Siempre hay alguien dispuesto a ayudar con cualquier duda."),
+    ]
+    for col, (autor, texto) in zip([tc1, tc2, tc1, tc2], testimonios):
+        with col:
+            st.markdown(f"""
+            <div class="testimonial">
+                "{texto}"
+                <div class="testimonial-author">— {autor}</div>
+            </div>""", unsafe_allow_html=True)
+
+    st.markdown("---")
+    cta1, cta2 = st.columns(2)
+    with cta1:
+        if st.button("📚  Ver todos los cursos", key="cta_cursos"):
+            ir("cursos")
+    with cta2:
+        if st.button("💳  Ver planes y precios", key="cta_planes"):
+            ir("planes")
+    footer()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PÁGINA: MIS CURSOS
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.pagina == "cursos":
+    st.markdown('<div class="hero-title">📚 Catálogo de cursos</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-sub">Aprenda a su ritmo · Sin presiones · Con apoyo real</div>', unsafe_allow_html=True)
+
+    # Filtros simples
+    filtro = st.radio("Mostrar:", ["Todos", "Gratuitos", "Premium"], horizontal=True, key="filtro_cursos")
+
+    st.markdown("### Curso en progreso")
+
+    # Curso principal
+    st.markdown(f"""
+    <div class="card">
+        <div style="display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap;">
+            <div style="font-size:2.8rem;">🌐</div>
+            <div style="flex:1;">
+                <span class="badge badge-free">Gratis</span>
+                <div style="font-size:1.1rem;font-weight:800;margin:8px 0 4px;">{CURSO_INTERNET['titulo']}</div>
+                <div style="font-size:14px;color:#6B7280;margin-bottom:10px;">{CURSO_INTERNET['descripcion']}</div>
+            </div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+    prog_actual = (st.session_state.modulo - 1) / len(CURSO_INTERNET["modulos"])
+    st.progress(prog_actual)
+    st.caption(f"Módulo {st.session_state.modulo} de {len(CURSO_INTERNET['modulos'])} · {int(prog_actual*100)}% completado")
+    if st.button("▶️  Continuar curso", key="continuar_curso"):
+        ir("curso")
+
+    st.markdown("---")
+    st.markdown("### Otros cursos disponibles")
+
+    for curso in OTROS_CURSOS:
+        if filtro == "Gratuitos" and curso["premium"]:
+            continue
+        if filtro == "Premium" and not curso["premium"]:
+            continue
+
+        tag_html = ""
+        if curso["tag"]:
+            tag_html = f'<span class="badge badge-new">{curso["tag"]}</span> '
+        prem_html = '<span class="badge badge-premium">Premium</span>' if curso["premium"] else '<span class="badge badge-free">Gratis</span>'
+
+        st.markdown(f"""
+        <div class="card">
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+                <div style="font-size:2.4rem;">{curso['emoji']}</div>
+                <div style="flex:1;">
+                    <div style="margin-bottom:6px;">{tag_html}{prem_html}</div>
+                    <div style="font-size:1rem;font-weight:800;margin-bottom:4px;">{curso['titulo']}</div>
+                    <div style="font-size:14px;color:#6B7280;">{curso['descripcion']}</div>
+                </div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+        btn_label = "🔒  Ver en planes Premium" if curso["premium"] else "▶️  Comenzar curso"
+        btn_key = f"btn_curso_{curso['titulo']}"
+        if st.button(btn_label, key=btn_key):
+            if curso["premium"]:
+                ir("planes")
+
+    footer()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PÁGINA: CURSO
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.pagina == "curso":
+    total_modulos = len(CURSO_INTERNET["modulos"])
+    modulo_idx = st.session_state.modulo - 1
+    modulo = CURSO_INTERNET["modulos"][modulo_idx]
+
+    # Header
+    st.markdown(f"""
+    <div style="font-size:13px;font-weight:700;color:#8B92A8;margin-bottom:4px;">
+        {CURSO_INTERNET['titulo']} · Módulo {st.session_state.modulo} de {total_modulos}
+    </div>
+    <div style="font-size:1.5rem;font-weight:900;margin-bottom:12px;">
+        {modulo['icono']} {modulo['titulo']}
+    </div>""", unsafe_allow_html=True)
+
+    # Barra de progreso del curso
+    prog = modulo_idx / total_modulos
+    st.progress(prog)
+
+    # Navegación entre módulos
+    nav_cols = st.columns(total_modulos)
+    for i, (col, m) in enumerate(zip(nav_cols, CURSO_INTERNET["modulos"])):
+        with col:
+            estado = "✅" if i < modulo_idx else ("▶️" if i == modulo_idx else "○")
+            if st.button(f"{estado} {m['icono']}", key=f"nav_mod_{i}", help=m["titulo"]):
+                st.session_state.modulo = i + 1
+                st.session_state.pregunta = 0
+                st.session_state.correctas = 0
+                st.session_state.quiz_done = False
+                st.session_state.quiz_respondida = False
+                st.rerun()
+
+    st.markdown("")
+    tab_contenido, tab_quiz = st.tabs(["📖  Contenido", "🎯  Evaluación"])
+
+    # ── TAB CONTENIDO ──────────────────────────────────────────────────────────
+    with tab_contenido:
+        st.markdown(modulo["contenido"])
+
+        st.markdown("### 🎬 Video explicativo")
+        st.markdown(f"""
+        <div style="display:flex;justify-content:center;margin:16px 0;">
+            <iframe width="640" height="360" src="{modulo['video']}"
+                title="Video del módulo" frameborder="0"
+                allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
+                allowfullscreen style="border-radius:16px;max-width:100%;"></iframe>
+        </div>""", unsafe_allow_html=True)
+
+        col_prev, col_next = st.columns(2)
+        with col_prev:
+            if st.session_state.modulo > 1:
+                if st.button("◀  Módulo anterior", key="prev_mod"):
+                    st.session_state.modulo -= 1
+                    st.session_state.pregunta = 0
+                    st.session_state.correctas = 0
+                    st.session_state.quiz_done = False
+                    st.session_state.quiz_respondida = False
+                    st.rerun()
+        with col_next:
+            if st.session_state.modulo < total_modulos:
+                if st.button("Módulo siguiente  ▶", key="next_mod"):
+                    st.session_state.modulo += 1
+                    st.session_state.pregunta = 0
+                    st.session_state.correctas = 0
+                    st.session_state.quiz_done = False
+                    st.session_state.quiz_respondida = False
+                    st.rerun()
+
+    # ── TAB QUIZ ───────────────────────────────────────────────────────────────
+    with tab_quiz:
+        preguntas = modulo["quiz"]
+        total_preg = len(preguntas)
+
+        if not st.session_state.quiz_done:
+            p_idx = st.session_state.pregunta
+            preg = preguntas[p_idx]
+
+            st.markdown(f"""
+            <div style="font-size:13px;font-weight:700;color:#8B92A8;margin-bottom:10px;">
+                Pregunta {p_idx+1} de {total_preg}
+            </div>""", unsafe_allow_html=True)
+            st.progress((p_idx) / total_preg)
+
+            st.markdown(f"""
+            <div class="quiz-card">
+                <div class="quiz-question">{preg['pregunta']}</div>
+            </div>""", unsafe_allow_html=True)
+
             respuesta = st.radio(
-                "Seleccione la respuesta correcta:",
-                pregunta_actual["opciones"],
-                key=f"quiz_{st.session_state.modulo_actual}_{st.session_state.pregunta_actual}"
+                "Elija su respuesta:",
+                preg["opciones"],
+                key=f"q_{st.session_state.modulo}_{p_idx}",
+                index=None,
             )
-            
-            if st.button("Comprobar respuesta"):
-                indice_respuesta = pregunta_actual["opciones"].index(respuesta)
-                if evaluar_respuesta(indice_respuesta, pregunta_actual["respuesta_correcta"]):
-                    st.success("¡Respuesta correcta! 👏")
+
+            if not st.session_state.quiz_respondida:
+                if st.button("Comprobar respuesta ✓", key=f"check_{p_idx}"):
+                    if respuesta is None:
+                        st.warning("Por favor, seleccione una respuesta antes de continuar.")
+                    else:
+                        idx_elegido = preg["opciones"].index(respuesta)
+                        st.session_state.respuesta_elegida = idx_elegido
+                        st.session_state.quiz_respondida = True
+                        if idx_elegido == preg["correcta"]:
+                            st.session_state.correctas += 1
+                        st.rerun()
+            else:
+                idx_elegido = st.session_state.respuesta_elegida
+                if idx_elegido == preg["correcta"]:
+                    st.success(f"✅ ¡Correcto! {preg['explicacion']}")
                 else:
-                    st.error(f"Respuesta incorrecta. La respuesta correcta era: {pregunta_actual['opciones'][pregunta_actual['respuesta_correcta']]}")
-                
-                if st.button("Siguiente pregunta"):
-                    siguiente_pregunta()
-                    st.experimental_rerun()
+                    st.error(f"❌ Respuesta incorrecta. La correcta era: **{preg['opciones'][preg['correcta']]}**")
+                    st.info(f"💡 {preg['explicacion']}")
+
+                sig_label = "Ver resultados 🎉" if p_idx == total_preg - 1 else "Siguiente pregunta ▶"
+                if st.button(sig_label, key=f"next_q_{p_idx}"):
+                    if p_idx < total_preg - 1:
+                        st.session_state.pregunta += 1
+                        st.session_state.quiz_respondida = False
+                        st.session_state.respuesta_elegida = None
+                        st.rerun()
+                    else:
+                        st.session_state.quiz_done = True
+                        st.rerun()
+
         else:
-            # Mostrar resultados del quiz
-            st.markdown("### Resultados de la evaluación")
-            st.write(f"Ha respondido correctamente {st.session_state.respuestas_correctas} de {len(modulo['quiz'])} preguntas.")
-            
-            # Calcular porcentaje de aciertos
-            porcentaje = (st.session_state.respuestas_correctas / len(modulo['quiz'])) * 100
-            
-            if porcentaje >= 70:
-                st.success(f"¡Felicitaciones! Ha aprobado con un {porcentaje:.0f}% de aciertos.")
-                if st.session_state.modulo_actual < len(curso_internet["modulos"]):
-                    if st.button("Continuar al siguiente módulo"):
-                        siguiente_modulo()
+            # Resultados
+            correctas = st.session_state.correctas
+            pct = int((correctas / total_preg) * 100)
+            aprobado = pct >= 70
+
+            st.markdown(f"""
+            <div style="text-align:center;padding:20px 0;">
+                {progress_ring_html(pct)}
+                <div style="font-size:1.3rem;font-weight:900;margin-bottom:6px;">
+                    {'¡Excelente! 🎉' if pct==100 else '¡Aprobado! 👏' if aprobado else 'Casi lo logra 💪'}
+                </div>
+                <div style="font-size:15px;color:#6B7280;">
+                    Respondió correctamente <strong>{correctas} de {total_preg}</strong> preguntas
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+            if aprobado:
+                st.success(f"Aprobó el módulo con {pct}% de aciertos. ¡Siga así!")
+                if st.session_state.modulo < total_modulos:
+                    if st.button("▶  Continuar al siguiente módulo", key="sig_mod_ok"):
+                        st.session_state.modulo += 1
+                        st.session_state.pregunta = 0
+                        st.session_state.correctas = 0
+                        st.session_state.quiz_done = False
+                        st.session_state.quiz_respondida = False
+                        st.rerun()
                 else:
                     st.balloons()
-                    st.success("¡Felicitaciones! Ha completado todo el curso.")
+                    st.success("🏆 ¡Felicitaciones! Completó el curso completo. Puede descargar su certificado desde su perfil.")
             else:
-                st.warning(f"Ha obtenido un {porcentaje:.0f}% de aciertos. Necesita al menos 70% para aprobar.")
-                if st.button("Intentar nuevamente"):
-                    reiniciar_quiz()
-                    st.experimental_rerun()
-            
-            # Opción para repasar el contenido
-            if st.button("Repasar el contenido"):
-                st.session_state.mostrar_resultado = False
-                st.experimental_rerun()
+                st.warning(f"Obtuvo {pct}%. Necesita al menos 70% para aprobar. ¡No se rinda!")
+                if st.button("🔄  Intentar nuevamente", key="retry_quiz"):
+                    st.session_state.pregunta = 0
+                    st.session_state.correctas = 0
+                    st.session_state.quiz_done = False
+                    st.session_state.quiz_respondida = False
+                    st.session_state.respuesta_elegida = None
+                    st.rerun()
 
-# Footer y botón de WhatsApp en todas las páginas
-st.markdown("""
-<div class="footer">
-    AdulTec © 2025 - La experiencia de toda una vida, ahora también en digital
-</div>
-""", unsafe_allow_html=True)
+            if st.button("📖  Repasar el contenido", key="repasar"):
+                st.session_state.quiz_done = False
+                st.session_state.pregunta = 0
+                st.session_state.correctas = 0
+                st.session_state.quiz_respondida = False
+                st.rerun()
+
+    if st.button("← Volver al catálogo", key="volver_cursos"):
+        ir("cursos")
+    footer()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PÁGINA: COMUNIDAD
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.pagina == "comunidad":
+    st.markdown('<div class="hero-title">👥 Comunidad AdulTec</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-sub">Un espacio amigable para aprender juntos, hacer preguntas y compartir experiencias.</div>', unsafe_allow_html=True)
+
+    tab_faq, tab_pregunta, tab_foro = st.tabs(["❓ Preguntas frecuentes", "📨 Hacer una consulta", "💬 Foro de estudiantes"])
+
+    with tab_faq:
+        st.markdown("### Preguntas frecuentes")
+        faqs = [
+            ("¿Cómo puedo cambiar mi contraseña?",
+             "Haga clic en su nombre de usuario → 'Mi perfil' → 'Cambiar contraseña'. Siga las instrucciones en pantalla."),
+            ("¿Cómo accedo a mis cursos?",
+             "Desde el menú lateral toque '📚 Mis cursos', o desde la página de inicio en 'Curso en progreso'."),
+            ("¿Los cursos tienen vencimiento?",
+             "No. Una vez inscripto, tiene acceso de por vida. Avance a su propio ritmo."),
+            ("¿Cómo obtengo el descuento para jubilados?",
+             "Envíe una foto de su carnet de jubilado o pensionado a ayuda@adultec.com y le aplicamos el 20% de descuento en 24 hs."),
+            ("¿Puedo cancelar cuando quiero?",
+             "Sí. No hay contratos ni permanencia mínima. Cancele desde 'Mi perfil' o escribiéndonos por WhatsApp."),
+            ("¿Qué pasa si tengo problemas técnicos?",
+             "Use el botón verde 💬 de WhatsApp (abajo a la derecha), llame al 0800-ADULTEC o escriba a ayuda@adultec.com. Atendemos Lun–Vie de 9 a 18 hs."),
+        ]
+        for pregunta, respuesta in faqs:
+            with st.expander(f"🔹 {pregunta}"):
+                st.write(respuesta)
+
+    with tab_pregunta:
+        st.markdown("### Envíe su consulta")
+        st.write("Le responderemos dentro de las **24 horas hábiles**.")
+
+        categoria = st.selectbox(
+            "Categoría:",
+            ["Seleccione una categoría", "Problemas técnicos", "Contenido de los cursos", "Facturación y pagos", "Descuento jubilados", "Otros"],
+            key="cat_consulta"
+        )
+        titulo_q = st.text_input("Título de su consulta:", placeholder="Ej: No puedo abrir el video del módulo 2", key="titulo_consulta")
+        detalle_q = st.text_area(
+            "Describa su consulta:",
+            height=130,
+            placeholder="Cuanto más detalle nos dé, más rápido podremos ayudarle.",
+            key="detalle_consulta"
+        )
+        if st.button("📨  Enviar consulta", key="enviar_consulta"):
+            if categoria == "Seleccione una categoría" or not titulo_q or not detalle_q:
+                st.error("Por favor, complete todos los campos.")
+            else:
+                st.success("✅ ¡Consulta enviada! Le responderemos pronto en su correo registrado.")
+
+    with tab_foro:
+        st.markdown("### Conversaciones recientes")
+
+        busqueda_f = st.text_input("🔍  Buscar en el foro:", placeholder="Ej: WhatsApp, contraseña...", key="busqueda_foro")
+
+        posts = [
+            {"autor": "Marta G.", "hace": "Ayer", "titulo": "¿Cómo guardo una foto de WhatsApp en la galería?", "resp": 3, "ultima": "Hace 2 hs"},
+            {"autor": "Roberto P.", "hace": "Hace 3 días", "titulo": "Recomendación de teclado con letras más grandes", "resp": 7, "ultima": "Hoy"},
+            {"autor": "Carmen L.", "hace": "Hace 5 días", "titulo": "Problema para comprar en Mercado Libre", "resp": 5, "ultima": "Hace 2 días"},
+            {"autor": "José M.", "hace": "Hace 1 semana", "titulo": "¿Cómo activo el WiFi en mi tablet Samsung?", "resp": 4, "ultima": "Hace 3 días"},
+        ]
+
+        filtrados = [p for p in posts if not busqueda_f or busqueda_f.lower() in p["titulo"].lower()]
+
+        if not filtrados:
+            st.info("No se encontraron resultados para su búsqueda.")
+        for p in filtrados:
+            st.markdown(f"""
+            <div class="card">
+                <div style="font-size:1rem;font-weight:800;margin-bottom:6px;">{p['titulo']}</div>
+                <div style="font-size:13px;color:#8B92A8;font-weight:600;">
+                    ✍️ {p['autor']} · {p['hace']} &nbsp;·&nbsp;
+                    💬 {p['resp']} respuestas &nbsp;·&nbsp;
+                    🕐 Última actividad: {p['ultima']}
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+        if st.button("✏️  Crear nuevo tema", key="nuevo_tema"):
+            st.info("Esta función estará disponible próximamente. Por ahora, use la pestaña 'Hacer una consulta'.")
+
+    footer()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PÁGINA: PLANES
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.pagina == "planes":
+    st.markdown('<div class="hero-title">💳 Planes y precios</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-sub">Precios calibrados para el bolsillo argentino · 7 días de prueba gratis en planes pagos</div>', unsafe_allow_html=True)
+
+    # Toggle mensual/anual
+    facturacion = st.radio("Facturación:", ["Mensual", "Anual (2 meses gratis)", ], horizontal=True, key="facturacion")
+    anual = facturacion == "Anual (2 meses gratis)"
+
+    st.markdown("")
+    cols = st.columns(3)
+    for col, plan in zip(cols, PLANES):
+        with col:
+            precio = plan["precio_anual"] // 12 if anual else plan["precio_mes"]
+            periodo = "/mes · facturado anualmente" if anual else "/mes"
+            featured_class = " featured" if plan["featured"] else ""
+            rec_label = '<div style="font-size:12px;font-weight:800;color:#4361EE;margin-bottom:8px;">⭐ MÁS ELEGIDO</div>' if plan["featured"] else ""
+
+            features_html = "".join(
+                f'<div class="plan-feature"><span class="check">✅</span>{f}</div>'
+                for f in plan["features"]
+            )
+            no_html = "".join(
+                f'<div class="plan-feature"><span style="color:#D1D5DB;">✗</span><span style="color:#9CA3AF;">{f}</span></div>'
+                for f in plan.get("no_incluye", [])
+            )
+
+            st.markdown(f"""
+            <div class="plan-card{featured_class}">
+                {rec_label}
+                <div style="font-size:2rem;margin-bottom:6px;">{plan['emoji']}</div>
+                <div class="plan-name">{plan['nombre']}</div>
+                <div class="plan-price">{fmt_ars(precio)}</div>
+                <div class="plan-period">{periodo}</div>
+                <hr style="margin:14px 0;">
+                {features_html}
+                {no_html}
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown("")
+            btn_label = "Comenzar gratis" if plan["nombre"] == "Básico" else f"Probar 7 días gratis"
+            if st.button(btn_label, key=f"btn_plan_{plan['nombre']}"):
+                if not st.session_state.logueado:
+                    ir("registro")
+                else:
+                    st.success(f"✅ Plan {plan['nombre']} activado. ¡Bienvenido/a!")
+
+    st.markdown("---")
+
+    # ARPU y distribución — gráfico con plotly
+    st.markdown("### 📊 Distribución de usuarios por plan")
+    df_planes = pd.DataFrame([
+        {"Plan": p["nombre"], "Mix (%)": round(p["mix"] * 100, 1), "Precio (ARS/mes)": p["precio_mes"]}
+        for p in PLANES
+    ])
+
+    col_g1, col_g2 = st.columns([1, 1])
+    with col_g1:
+        fig_pie = go.Figure(go.Pie(
+            labels=df_planes["Plan"],
+            values=df_planes["Mix (%)"],
+            hole=0.55,
+            marker_colors=["#34D399", "#4361EE", "#7C3AED"],
+            textfont_size=14,
+        ))
+        fig_pie.update_layout(
+            title="Mix de planes (encuesta real, n=45)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font_family="Nunito",
+            showlegend=True,
+            margin=dict(t=40, b=20, l=0, r=0),
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    with col_g2:
+        fig_bar = go.Figure(go.Bar(
+            x=df_planes["Plan"],
+            y=df_planes["Precio (ARS/mes)"],
+            marker_color=["#34D399", "#4361EE", "#7C3AED"],
+            text=[fmt_ars(p) for p in df_planes["Precio (ARS/mes)"]],
+            textposition="outside",
+        ))
+        fig_bar.update_layout(
+            title=f"Precios por plan · ARPU ponderado: {fmt_ars(ARPU)}/mes",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font_family="Nunito",
+            yaxis_title="ARS/mes",
+            margin=dict(t=40, b=20, l=0, r=0),
+            yaxis=dict(showgrid=True, gridcolor="#E2E6F3"),
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    st.markdown("---")
+
+    # Descuentos y beneficios
+    st.markdown("### 🎁 Descuentos especiales")
+    d1, d2 = st.columns(2)
+    with d1:
+        st.markdown("""
+        <div class="card">
+            <div style="font-size:1.6rem;margin-bottom:8px;">👴👵</div>
+            <div style="font-weight:800;font-size:1rem;margin-bottom:4px;">Descuento jubilados y pensionados</div>
+            <div style="font-size:14px;color:#6B7280;">Presentando su carnet de jubilado/a obtenga un <strong>20% de descuento</strong> en cualquier plan. Envíe una foto a ayuda@adultec.com.</div>
+        </div>""", unsafe_allow_html=True)
+    with d2:
+        st.markdown("""
+        <div class="card">
+            <div style="font-size:1.6rem;margin-bottom:8px;">👨‍👩‍👧‍👦</div>
+            <div style="font-weight:800;font-size:1rem;margin-bottom:4px;">Plan familiar</div>
+            <div style="font-size:14px;color:#6B7280;">Comparta su suscripción Premium con hasta <strong>3 miembros de su familia</strong> y ahorre un 30% del valor total.</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("### ❓ Preguntas frecuentes sobre planes")
+    plan_faqs = [
+        ("¿Puedo cancelar en cualquier momento?", "Sí. No hay permanencia mínima ni penalización. Cancele cuando lo desee desde su perfil."),
+        ("¿Qué métodos de pago aceptan?", "Tarjetas de crédito y débito (Visa, Mastercard, Amex), transferencia bancaria y Mercado Pago."),
+        ("¿Hay período de prueba?", "Sí. Los planes Estándar y Premium incluyen 7 días de prueba gratuita sin necesidad de tarjeta de crédito."),
+        ("¿Hay becas?", "Sí. Contamos con un programa de becas para personas con bajos recursos. Escriba a becas@adultec.com para más información."),
+    ]
+    for p, r in plan_faqs:
+        with st.expander(f"🔹 {p}"):
+            st.write(r)
+
+    footer()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PÁGINA: LOGIN
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.pagina == "login":
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        st.markdown("""
+        <div style="text-align:center;margin-bottom:20px;">
+            <span style="font-size:3rem;">🔑</span>
+            <div style="font-size:1.5rem;font-weight:900;margin-top:6px;">Iniciar sesión</div>
+            <div style="font-size:14px;color:#8B92A8;font-weight:600;margin-top:4px;">Bienvenido/a de vuelta</div>
+        </div>""", unsafe_allow_html=True)
+
+        with st.form("form_login"):
+            usuario = st.text_input("Correo electrónico:", placeholder="ejemplo@gmail.com")
+            contrasena = st.text_input("Contraseña:", type="password")
+            recordar = st.checkbox("Recordar mi acceso")
+            enviar = st.form_submit_button("Ingresar →")
+
+            if enviar:
+                if usuario and contrasena:
+                    st.session_state.logueado = True
+                    st.session_state.nombre = usuario.split("@")[0].capitalize()
+                    st.success("¡Bienvenido/a! Redirigiendo...")
+                    time.sleep(1)
+                    ir("inicio")
+                else:
+                    st.error("Complete todos los campos.")
+
+        st.markdown("<div style='text-align:center;margin-top:12px;'>¿No tiene cuenta aún?</div>", unsafe_allow_html=True)
+        if st.button("📝  Crear cuenta gratis", key="ir_registro_desde_login"):
+            ir("registro")
+
+    footer()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PÁGINA: REGISTRO
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.pagina == "registro":
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        st.markdown("""
+        <div style="text-align:center;margin-bottom:20px;">
+            <span style="font-size:3rem;">📝</span>
+            <div style="font-size:1.5rem;font-weight:900;margin-top:6px;">Crear mi cuenta</div>
+            <div style="font-size:14px;color:#8B92A8;font-weight:600;margin-top:4px;">Es rápido, fácil y gratuito</div>
+        </div>""", unsafe_allow_html=True)
+
+        with st.form("form_registro"):
+            c1, c2 = st.columns(2)
+            with c1:
+                nombre = st.text_input("Nombre*:", placeholder="Juan")
+            with c2:
+                apellido = st.text_input("Apellido*:", placeholder="Pérez")
+
+            email = st.text_input("Correo electrónico*:", placeholder="ejemplo@gmail.com")
+            telefono = st.text_input("Teléfono (opcional):", placeholder="+54 264 000-0000")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                contrasena = st.text_input("Contraseña*:", type="password")
+            with c2:
+                conf_contrasena = st.text_input("Confirmar contraseña*:", type="password")
+
+            nacimiento = st.date_input("Fecha de nacimiento:")
+            jubilado = st.checkbox("Soy jubilado/a o pensionado/a (20% de descuento)")
+            terminos = st.checkbox("Acepto los términos y condiciones*")
+            novedades = st.checkbox("Quiero recibir novedades y promociones")
+
+            enviar = st.form_submit_button("Crear mi cuenta gratis →")
+
+            if enviar:
+                if not (nombre and apellido and email and contrasena and conf_contrasena and terminos):
+                    st.error("Complete todos los campos obligatorios (*).")
+                elif contrasena != conf_contrasena:
+                    st.error("Las contraseñas no coinciden.")
+                elif len(contrasena) < 6:
+                    st.error("La contraseña debe tener al menos 6 caracteres.")
+                else:
+                    st.session_state.logueado = True
+                    st.session_state.nombre = nombre
+                    st.success(f"¡Cuenta creada con éxito! Bienvenido/a, {nombre}. 🎉")
+                    if jubilado:
+                        st.info("Recuerde enviarnos su carnet de jubilado a ayuda@adultec.com para activar el 20% de descuento.")
+                    time.sleep(2)
+                    ir("inicio")
+
+        st.markdown("<div style='text-align:center;margin-top:12px;'>¿Ya tiene cuenta?</div>", unsafe_allow_html=True)
+        if st.button("✅  Iniciar sesión", key="ir_login_desde_registro"):
+            ir("login")
+
+    footer()
