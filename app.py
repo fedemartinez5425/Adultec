@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="AdulTec – Aprendizaje digital para adultos mayores",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ─── CSS Global ───────────────────────────────────────────────────────────────
@@ -336,6 +336,55 @@ def aplicar_css(tema: str):
         color: {accent};
     }}
 
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 768px) {{
+        .main .block-container {{
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
+            padding-top: 0.8rem !important;
+            padding-bottom: 80px !important;
+            max-width: 100% !important;
+        }}
+        .hero-title {{ font-size: 1.6rem !important; }}
+        .hero-sub {{ font-size: 0.95rem !important; }}
+        .plan-card {{ padding: 16px 12px !important; }}
+        .plan-price {{ font-size: 1.6rem !important; }}
+        .card {{ padding: 14px !important; }}
+        .quiz-card {{ padding: 16px !important; }}
+        .stat-box {{ padding: 12px !important; }}
+        .stat-number {{ font-size: 1.4rem !important; }}
+    }}
+
+    /* Bottom navigation bar - mobile only */
+    .bottom-nav {{
+        display: none;
+    }}
+    @media (max-width: 768px) {{
+        .bottom-nav {{
+            display: flex;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 9998;
+            background: {surface};
+            border-top: 1.5px solid {border};
+            padding: 6px 0 12px;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+        }}
+        .bottom-nav a {{
+            display: flex; flex-direction: column; align-items: center;
+            gap: 2px; text-decoration: none;
+            color: {muted}; font-size: 10px; font-weight: 700;
+            font-family: 'Nunito', sans-serif; padding: 4px 8px;
+        }}
+        .bottom-nav a.active {{ color: {accent}; }}
+        .bottom-nav .nav-icon {{ font-size: 20px; line-height: 1; }}
+        .whatsapp-btn {{ bottom: 72px !important; right: 16px !important; }}
+        section[data-testid="stSidebar"] {{ width: 85vw !important; min-width: 0 !important; }}
+    }}
+
     /* hide default streamlit menu & footer */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
@@ -346,6 +395,25 @@ def aplicar_css(tema: str):
         <div class="whatsapp-btn">💬</div>
     </a>
     """, unsafe_allow_html=True)
+
+def render_bottom_nav(pagina_actual: str):
+    """Renders mobile bottom navigation bar."""
+    items = [
+        ("inicio",    "🏠", "Inicio"),
+        ("cursos",    "📚", "Cursos"),
+        ("comunidad", "👥", "Comunidad"),
+        ("planes",    "💳", "Planes"),
+    ]
+    parts = []
+    for p, ico, label in items:
+        active_class = "active" if p == pagina_actual else ""
+        parts.append(
+            f'<a href="?nav={p}" class="{active_class}">'
+            f'<span class="nav-icon">{ico}</span>{label}</a>'
+        )
+    nav_html = '<div class="bottom-nav">' + "".join(parts) + '</div>'
+    st.markdown(nav_html, unsafe_allow_html=True)
+
 
 
 # ─── Datos del curso ───────────────────────────────────────────────────────────
@@ -575,7 +643,11 @@ Desconfíe si recibe mensajes con:
     ],
 }
 
+# Categorías para el catálogo ampliado
+CATEGORIAS_CURSOS = ["Todos", "Comunicación", "Microsoft Office", "Trámites", "Seguridad", "Entretenimiento"]
+
 OTROS_CURSOS = [
+    # ── Comunicación ──────────────────────────────────────────────────────────
     {
         "titulo": "WhatsApp desde cero",
         "descripcion": "Envíe mensajes, fotos y haga videollamadas con familia y amigos. El curso más pedido.",
@@ -583,22 +655,127 @@ OTROS_CURSOS = [
         "progreso": 0.0,
         "premium": False,
         "tag": "Más popular",
+        "categoria": "Comunicación",
     },
     {
-        "titulo": "Cómo usar su smartphone",
-        "descripcion": "Domine las funciones básicas y avanzadas de su teléfono inteligente.",
-        "emoji": "📲",
+        "titulo": "Correo electrónico con Gmail",
+        "descripcion": "Cree su cuenta de Gmail, envíe correos, adjunte fotos y organice su bandeja de entrada.",
+        "emoji": "📧",
+        "progreso": 0.0,
+        "premium": False,
+        "tag": None,
+        "categoria": "Comunicación",
+    },
+    {
+        "titulo": "Videollamadas con Zoom y Meet",
+        "descripcion": "Únase a reuniones familiares, médicas o de la iglesia por videollamada sin complicaciones.",
+        "emoji": "🎥",
+        "progreso": 0.0,
+        "premium": False,
+        "tag": None,
+        "categoria": "Comunicación",
+    },
+    {
+        "titulo": "Facebook para adultos mayores",
+        "descripcion": "Conecte con amigos, familia y grupos de interés. Comparta fotos y manténgase al día.",
+        "emoji": "👥",
+        "progreso": 0.0,
+        "premium": False,
+        "tag": None,
+        "categoria": "Comunicación",
+    },
+    # ── Microsoft Office ──────────────────────────────────────────────────────
+    {
+        "titulo": "Word: cartas y documentos",
+        "descripcion": "Escriba cartas, notas y documentos con Microsoft Word. Aprenda a formatear, guardar e imprimir.",
+        "emoji": "📝",
         "progreso": 0.0,
         "premium": True,
         "tag": "Nuevo",
+        "categoria": "Microsoft Office",
     },
     {
-        "titulo": "Trámites online: ANSES, AFIP y más",
-        "descripcion": "Realice gestiones gubernamentales desde la comodidad de su hogar.",
+        "titulo": "Excel: tablas y presupuestos simples",
+        "descripcion": "Organice sus gastos, haga listas y cálculos básicos con Microsoft Excel. Sin fórmulas complicadas.",
+        "emoji": "📊",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": "Nuevo",
+        "categoria": "Microsoft Office",
+    },
+    {
+        "titulo": "PowerPoint: presentaciones paso a paso",
+        "descripcion": "Cree presentaciones de fotos familiares o para el club con Microsoft PowerPoint.",
+        "emoji": "📽️",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": "Nuevo",
+        "categoria": "Microsoft Office",
+    },
+    {
+        "titulo": "OneDrive: sus fotos en la nube",
+        "descripcion": "Guarde y acceda a sus fotos desde cualquier dispositivo con Microsoft OneDrive. Nunca más pierda un recuerdo.",
+        "emoji": "☁️",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": None,
+        "categoria": "Microsoft Office",
+    },
+    {
+        "titulo": "Microsoft Teams para la familia",
+        "descripcion": "Organice videollamadas grupales, comparta documentos y chats con toda la familia usando Teams.",
+        "emoji": "🤝",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": None,
+        "categoria": "Microsoft Office",
+    },
+    {
+        "titulo": "Outlook: su correo profesional",
+        "descripcion": "Use Microsoft Outlook para gestionar correos, calendario y contactos de forma organizada.",
+        "emoji": "📬",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": None,
+        "categoria": "Microsoft Office",
+    },
+    # ── Smartphone ────────────────────────────────────────────────────────────
+    {
+        "titulo": "Cómo usar su smartphone",
+        "descripcion": "Domine las funciones básicas y avanzadas de su teléfono inteligente Android o iPhone.",
+        "emoji": "📲",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": None,
+        "categoria": "Comunicación",
+    },
+    # ── Trámites ──────────────────────────────────────────────────────────────
+    {
+        "titulo": "Trámites ANSES desde casa",
+        "descripcion": "Consulte su jubilación, solicite turnos y descargue recibos en anses.gob.ar sin salir del hogar.",
         "emoji": "🏛️",
         "progreso": 0.0,
         "premium": True,
         "tag": None,
+        "categoria": "Trámites",
+    },
+    {
+        "titulo": "Mi AFIP y factura electrónica",
+        "descripcion": "Acceda a su perfil en AFIP, consulte sus datos fiscales y entienda su situación impositiva.",
+        "emoji": "🧾",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": None,
+        "categoria": "Trámites",
+    },
+    {
+        "titulo": "Turno médico online",
+        "descripcion": "Saque turnos con su médico, hospital o obra social por Internet o por la app del celular.",
+        "emoji": "🏥",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": "Nuevo",
+        "categoria": "Trámites",
     },
     {
         "titulo": "Compras seguras en Internet",
@@ -606,8 +783,10 @@ OTROS_CURSOS = [
         "emoji": "🛒",
         "progreso": 0.0,
         "premium": True,
-        "tag": "Nuevo",
+        "tag": None,
+        "categoria": "Trámites",
     },
+    # ── Seguridad ─────────────────────────────────────────────────────────────
     {
         "titulo": "Privacidad y seguridad digital",
         "descripcion": "Consejos y herramientas para proteger sus datos personales y navegar sin miedo.",
@@ -615,6 +794,44 @@ OTROS_CURSOS = [
         "progreso": 0.1,
         "premium": False,
         "tag": None,
+        "categoria": "Seguridad",
+    },
+    {
+        "titulo": "Cómo detectar estafas y phishing",
+        "descripcion": "Reconozca mensajes falsos, llamadas fraudulentas y sitios peligrosos. Proteja su dinero.",
+        "emoji": "🚨",
+        "progreso": 0.0,
+        "premium": False,
+        "tag": "Nuevo",
+        "categoria": "Seguridad",
+    },
+    # ── Entretenimiento ───────────────────────────────────────────────────────
+    {
+        "titulo": "YouTube: videos e información",
+        "descripcion": "Encuentre tutoriales, películas, música y noticias en YouTube. Aprenda a buscar y guardar videos.",
+        "emoji": "▶️",
+        "progreso": 0.0,
+        "premium": False,
+        "tag": None,
+        "categoria": "Entretenimiento",
+    },
+    {
+        "titulo": "Spotify y música en streaming",
+        "descripcion": "Escuche sus canciones favoritas, tangos, folklore o lo que prefiera desde su celular o computadora.",
+        "emoji": "🎵",
+        "progreso": 0.0,
+        "premium": True,
+        "tag": None,
+        "categoria": "Entretenimiento",
+    },
+    {
+        "titulo": "Google Maps: nunca más se pierda",
+        "descripcion": "Use mapas en su celular para llegar a cualquier lugar, buscar negocios y ver transporte público.",
+        "emoji": "🗺️",
+        "progreso": 0.0,
+        "premium": False,
+        "tag": None,
+        "categoria": "Entretenimiento",
     },
 ]
 
@@ -697,6 +914,16 @@ def init_state():
 
 
 init_state()
+
+# Handle bottom-nav query param on mobile
+try:
+    _qp = st.query_params.get("nav", "")
+    if _qp and _qp in ["inicio", "cursos", "comunidad", "planes", "login", "registro"]:
+        st.session_state.pagina = _qp
+        st.query_params.clear()
+except Exception:
+    pass
+
 aplicar_css(st.session_state.tema)
 
 
@@ -773,6 +1000,9 @@ with st.sidebar:
         Lun–Vie · 9 a 18 hs
     </div>""", unsafe_allow_html=True)
 
+
+# ── Mobile bottom nav (renders fixed, one call is enough) ──
+_mobile_nav()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PÁGINA: INICIO
@@ -876,8 +1106,12 @@ elif st.session_state.pagina == "cursos":
     st.markdown('<div class="hero-title">📚 Catálogo de cursos</div>', unsafe_allow_html=True)
     st.markdown('<div class="hero-sub">Aprenda a su ritmo · Sin presiones · Con apoyo real</div>', unsafe_allow_html=True)
 
-    # Filtros simples
-    filtro = st.radio("Mostrar:", ["Todos", "Gratuitos", "Premium"], horizontal=True, key="filtro_cursos")
+    # Filtros
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        filtro_acc = st.radio("Acceso:", ["Todos", "Gratuitos", "Premium"], horizontal=True, key="filtro_acceso")
+    with col_f2:
+        filtro_cat = st.selectbox("Categoría:", CATEGORIAS_CURSOS, key="filtro_categoria")
 
     st.markdown("### Curso en progreso")
 
@@ -903,9 +1137,11 @@ elif st.session_state.pagina == "cursos":
     st.markdown("### Otros cursos disponibles")
 
     for curso in OTROS_CURSOS:
-        if filtro == "Gratuitos" and curso["premium"]:
+        if filtro_acc == "Gratuitos" and curso["premium"]:
             continue
-        if filtro == "Premium" and not curso["premium"]:
+        if filtro_acc == "Premium" and not curso["premium"]:
+            continue
+        if filtro_cat != "Todos" and curso.get("categoria") != filtro_cat:
             continue
 
         tag_html = ""
